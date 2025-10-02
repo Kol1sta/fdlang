@@ -31,11 +31,12 @@ typedef struct {
     int32_t value;
 } int_token_t;
 
-void* tokenize(FILE *file);
-void print_tokens(void* tokens);
+void **tokenize(FILE *file);
+void free_tokens(void** tokens);
+void print_tokens(void** tokens);
 
 token_t *generate_separator(token_type_t type, FILE *file);
-int_token_t *generate_number(char *current, FILE* file);
-token_t *generate_keyword(char *current, FILE *file);
+int_token_t *generate_number(int *current, FILE *file);
+token_t *generate_keyword(int *current, FILE *file);
 
 #endif

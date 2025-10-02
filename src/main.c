@@ -8,7 +8,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    tokenize(file);
+    void **tokens = tokenize(file);
+    print_tokens(tokens);
+    free_tokens(tokens);
 
     return 0;
 }
