@@ -23,6 +23,7 @@ typedef enum {
 
 typedef struct {
     token_type_t type;
+    void* value;
 } token_t;
 
 typedef struct {
@@ -31,7 +32,10 @@ typedef struct {
 } int_token_t;
 
 void* tokenize(FILE *file);
-int_token_t generate_number(char *current, FILE* file);
-token_t generate_keyword(char *current, FILE *file);
+void print_tokens(void* tokens);
+
+token_t *generate_separator(token_type_t type, FILE *file);
+int_token_t *generate_number(char *current, FILE* file);
+token_t *generate_keyword(char *current, FILE *file);
 
 #endif
