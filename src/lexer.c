@@ -1,15 +1,14 @@
-#include "fd.h"
-#include <stdio.h>
+#include "lexer.h"
 
-void **tokenize(FILE *file) {
+token_t **tokenize(FILE *file) {
     if(file == NULL) {
         fprintf(stderr, "Failed to read file in lexer");
         return NULL;
     }
 
     int symbol;
-    void **tokens = NULL;
-    void *current_token;
+    token_t **tokens = NULL;
+    token_t *current_token;
 
     size_t capacity = 0;
     size_t index = 0;
@@ -20,11 +19,11 @@ void **tokenize(FILE *file) {
         current_token = NULL;
 
         if(symbol == ';') {
-            current_token = generate_separator(SEMICOLON, file);
+            current_token = generate_separator(SEMICOLON);
         } else if(symbol == '(') {
-            current_token = generate_separator(LPAREN, file);
+            current_token = generate_separator(LPAREN);
         } else if(symbol == ')') {
-            current_token = generate_separator(RPAREN, file);
+            current_token = generate_separator(RPAREN);
         } else if(isdigit(symbol) || symbol == '-') {
             current_token = generate_number(&symbol, file);
         } else if(isalpha(symbol)) {
@@ -36,7 +35,7 @@ void **tokenize(FILE *file) {
         if(current_token) {
             if(index >= capacity) {
                 capacity = capacity == 0 ? 16 : capacity * 2;
-                void **new_tokens = (void**)realloc(tokens, sizeof(void*) * capacity);
+                token_t **new_tokens = (token_t**)realloc(tokens, sizeof(token_t*) * capacity);
 
                 if(new_tokens == NULL) {
                     fprintf(stderr, "Failed to reallocate memory for tokens");
@@ -53,7 +52,7 @@ void **tokenize(FILE *file) {
     }
 
     if(tokens) {
-        void **new_tokens = (void**)realloc(tokens, sizeof(void*) * (index + 1));
+        token_t **new_tokens = (token_t**)realloc(tokens, sizeof(token_t*) * (index + 1));
         if(new_tokens) {
             tokens = new_tokens;
             tokens[index] = NULL;
@@ -64,7 +63,7 @@ void **tokenize(FILE *file) {
     return tokens;
 }
 
-token_t *generate_separator(token_type_t type, FILE *file) {
+token_t *generate_separator(token_type_t type) {
     token_t *token = (token_t*)malloc(sizeof(token_t));
 
     if(token == NULL) {
@@ -73,46 +72,50 @@ token_t *generate_separator(token_type_t type, FILE *file) {
     }
 
     token->type = type;
+    token->value = NULL;
 
     return token;
 }
 
-int_token_t *generate_number(int *current, FILE *file) {
+token_t *generate_number(int *current, FILE *file) {
     uint8_t is_negative = 0;
-    uint8_t digits = 0;
-    int_token_t *token = (int_token_t*)malloc(sizeof(int_token_t));
+    token_t *token = (token_t*)malloc(sizeof(token_t));
+    short index = 0;
 
     if(token == NULL) {
         fprintf(stderr, "Failed to allocate memory for token number");
         return NULL;
     }
 
+    token->type = INT32;
+    token->value = (char*)malloc(sizeof(char) * MAX_INT32_VALUE + 1);
+    token->value[MAX_INT32_VALUE] = '\0';
+
     if(*current == '-') {
         is_negative = 1;
-        digits = 1;
         *current = getc(file);
 
         if(!isdigit(*current)) {
             token->type = CHAR;
-            token->value = '-';
+            token->value = "-";
             ungetc(*current, file);
             return token;
         }
+
+        token->value[0] = '-';
+        token->value[1] = '\0';
+        index++;
     }
 
-    token->type = INT32;
-    token->value = 0;
-    while(isdigit(*current) && *current != EOF) {
-        token->value = token->value * 10 + (int)(*current - '0');
+    while(isdigit(*current) && *current != EOF && index < MAX_INT32_VALUE + 1) {
+        token->value[index] = *current;
+        token->value[index + 1] = '\0';
         *current = getc(file);
+        index++;
     }
 
     if(*current != EOF) {
         ungetc(*current, file);
-    }
-
-    if(is_negative) {
-        token->value = -token->value;
     }
 
     return token;
@@ -146,7 +149,7 @@ token_t *generate_keyword(int *current, FILE *file) {
             if(strcmp(buffer, "exit") == 0) token->type = EXIT;
             break;
         default:
-            // undefined token
+            token->type = UNDEFINED_TOKEN;
             break;
     }
 
@@ -154,7 +157,7 @@ token_t *generate_keyword(int *current, FILE *file) {
     return token;
 }
 
-void free_tokens(void **tokens) {
+void free_tokens(token_t **tokens) {
     if(tokens) {
         for(size_t i = 0; tokens[i] != NULL; i++) {
             free(tokens[i]);
@@ -164,7 +167,7 @@ void free_tokens(void **tokens) {
     }
 }
 
-void print_tokens(void **tokens) {
+void print_tokens(token_t **tokens) {
     if(tokens == NULL) {
         fprintf(stderr, "No tokens for print");
         return;
@@ -196,10 +199,10 @@ void print_tokens(void **tokens) {
                 printf("EXIT                | exit\n");
                 break;
             case CHAR:
-                printf("CHAR                | '%c'\n", ((int_token_t*)base_token)->value);
+                printf("CHAR                | '%s'\n", ((token_t*)base_token)->value);
                 break;
             case INT32:
-                printf("INT32               | %d\n", ((int_token_t*)base_token)->value);
+                printf("INT32               | %s\n", ((token_t*)base_token)->value);
                 break;
             default:
                 printf("UNKNOWN             | ?\n");
